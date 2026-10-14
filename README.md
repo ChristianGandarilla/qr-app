@@ -1,22 +1,46 @@
 # QR App
 
-This project is a lightweight application to generate QR codes from a URL. It uses Node.js, Express, and the `qrcode` library to create QR images that can be returned as PNG or SVG.
+![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=nodedotjs)
+![Express](https://img.shields.io/badge/Express-5.x-000000?style=for-the-badge&logo=express)
+![QRCode](https://img.shields.io/badge/QRCode-Library-00AEEF?style=for-the-badge)
 
-## Objective
+QR App is a lightweight project focused on generating QR codes from URLs. It exposes a simple API that validates a URL, normalizes it when necessary, and returns the QR code as a PNG or SVG image.
 
-The main goal of this project is to turn a web address into a QR code quickly and easily. The app validates the URL, normalizes it if needed, and generates a QR image for use in websites, documents, or marketing materials.
+## Overview
+
+This project was created to solve a very specific problem: turning any valid website URL into a scannable QR code quickly and reliably.
+
+It is intentionally small and focused on a single workflow:
+
+- receive a URL
+- validate it
+- generate a QR code
+- return the image to the client
 
 ## Features
 
-- Generate QR codes from a URL
-- Accepts URLs with or without a protocol
-- Returns QR images in PNG or SVG format
-- Allows customization of size, colors, and error correction level
-- Supports file download behavior via query parameters
-- Validates suspicious or invalid URLs before generating the QR
+- Generate QR codes from URLs
+- Accept URLs with or without a protocol
+- Automatically add `https://` when needed
+- Validate malformed or empty inputs
+- Return images in `png` or `svg` format
+- Customize QR size, colors, and error correction level
+- Allow direct download of the generated file
+
+## How it works
+
+1. A client sends a request to the API with a `url` parameter.
+2. The Express server validates the URL and normalizes it if necessary.
+3. The `qrcode` library generates the QR image.
+4. The backend returns the image as a binary response.
+
+```text
+URL input --> Validation --> QR generation --> PNG/SVG output
+```
 
 ## Tech Stack
 
+- JavaScript
 - Node.js
 - Express
 - `qrcode`
@@ -26,6 +50,8 @@ The main goal of this project is to turn a web address into a QR code quickly an
 
 ```text
 qr-app/
+├── client/
+│   └── (frontend files, if added later)
 ├── server/
 │   ├── node_modules/
 │   ├── package.json
@@ -33,39 +59,42 @@ qr-app/
 ├── .gitignore
 ├── README.md
 ├── REDME.md
-└── ...
+├── package-lock.json
+└── .git/
 ```
+
+## Requirements
+
+Before running the project, make sure you have:
+
+- Node.js 18 or newer
+- npm installed
 
 ## Installation
 
-1. Open a terminal in the project folder.
-2. Go to the server directory:
+From the project root, install the server dependencies:
 
 ```bash
 cd server
-```
-
-3. Install the dependencies:
-
-```bash
 npm install
 ```
 
-## Run the project
+## Run the app
 
-Start the API server:
+Start the backend:
 
 ```bash
+cd server
 npm run dev
 ```
 
-The server will run on:
+The app runs on:
 
 ```text
 http://localhost:5000
 ```
 
-## API Usage
+## API Documentation
 
 ### Endpoint
 
@@ -75,47 +104,68 @@ GET /api/qr
 
 ### Query Parameters
 
-| Parameter | Description | Example |
-|---|---|---|
-| `url` | URL to encode in the QR code. Required. | `example.com` |
-| `format` | Output format: `png` or `svg` | `png` |
-| `size` | QR image width in pixels | `512` |
-| `fg` | Foreground color in hex format | `#000000` |
-| `bg` | Background color in hex format | `#ffffff` |
-| `ec` | Error correction level: `L`, `M`, `Q`, `H` | `M` |
-| `download` | If present, the response is sent as a downloadable file | `1` |
+| Parameter | Required | Description | Example |
+| --- | --- | --- | --- |
+| `url` | Yes | URL to encode in the QR code | `example.com` |
+| `format` | No | Output format: `png` or `svg` | `png` |
+| `size` | No | QR width in pixels | `512` |
+| `fg` | No | Foreground color in hex format | `#000000` |
+| `bg` | No | Background color in hex format | `#ffffff` |
+| `ec` | No | Error correction: `L`, `M`, `Q`, or `H` | `M` |
+| `download` | No | Sends the response as a downloadable file when present | `1` |
 
-### Examples
+### Supported Values
 
-Generate a PNG QR code from a URL:
+- `format`: `png`, `svg`
+- `ec`: `L`, `M`, `Q`, `H`
+- `fg` / `bg`: valid 6-digit hex colors such as `#000000` and `#ff6600`
+
+## Behavior
+
+The backend applies several checks before generating the QR:
+
+- trims the input value
+- prepends `https://` if missing
+- validates the URL using the `URL` API
+- returns HTTP 400 for invalid URLs
+- limits size to a safe range
+- uses default colors if not provided
+- returns an error if the URL is too long to encode correctly
+
+## Example Requests
+
+### Generate a PNG QR from a site URL
 
 ```bash
 curl "http://localhost:5000/api/qr?url=example.com&format=png&size=512" -o qr.png
 ```
 
-Generate a QR code from a GitHub URL and save it as SVG:
+### Generate an SVG QR for GitHub
 
 ```bash
 curl "http://localhost:5000/api/qr?url=https://github.com&format=svg" -o github-qr.svg
 ```
 
-Generate a downloadable PNG QR with custom colors:
+### Generate a downloadable QR with custom colors
 
 ```bash
 curl "http://localhost:5000/api/qr?url=example.com&format=png&size=700&fg=%23000000&bg=%23ffffff&download=1" -o qr-custom.png
 ```
 
-## Behavior
+### Generate a QR with high error correction
 
-- If the URL does not include a protocol, the server automatically adds `https://`.
-- If the URL is invalid, the API responds with a 400 status.
-- If the URL is too long for a QR code, the API responds with an error message.
+```bash
+curl "http://localhost:5000/api/qr?url=example.com&format=png&ec=H&size=600" -o qr-high-ec.png
+```
 
-## Example Response
+## Response Format
 
-For valid requests, the API returns the QR image directly as a binary response (`image/png` or `image/svg+xml`).
+A valid request returns the QR image directly as a binary response:
 
-For invalid input, the server may return:
+- `image/png` for PNG output
+- `image/svg+xml` for SVG output
+
+If the request is invalid, the API returns JSON error data, for example:
 
 ```json
 {
@@ -123,10 +173,42 @@ For invalid input, the server may return:
 }
 ```
 
-## Notes
+When the URL is too long for a QR code, the API may respond with:
 
-This project is a simple and practical QR generator focused on a URL-based workflow. It can be used as a backend API or can be expanded later with a frontend interface.
+```json
+{
+  "error": "La URL es demasiado larga para un QR"
+}
+```
+
+## Common Use Cases
+
+- create QR codes for landing pages
+- link printed materials to online resources
+- share website URLs in mobile-friendly formats
+- generate QR codes for internal tools or dashboards
+
+## Current Limitations
+
+This project is intentionally simple and has the following limits:
+
+- backend-only; no full UI is included yet
+- only URL-based QR generation is supported
+- no persistence or database layer
+- no user account system or authentication
+- no analytics or tracking built in
+
+## Future Improvements
+
+Possible next steps include:
+
+- building a frontend UI in the `client` folder
+- adding tests for validation and QR generation
+- supporting more QR types such as text or Wi-Fi data
+- allowing custom filenames and response metadata
+- adding Docker support
+- adding logging and monitoring
 
 ## License
 
-Christian Gandarilla
+This project is distributed under the ISC license.
